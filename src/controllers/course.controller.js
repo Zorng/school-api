@@ -1,5 +1,8 @@
 import db from '../models/index.js';
 
+const Teacher = db.Teacher;
+const Student = db.Student;
+
 /**
  * @swagger
  * tags:
@@ -55,6 +58,23 @@ export const createCourse = async (req, res) => {
  *         name: limit
  *         schema: { type: integer, default: 10 }
  *         description: Number of items per page
+ *       - in: query
+ *         name: sortBy
+ *         schema: {type: string, enum: [id, title, createdAt, updatedAt], default: id}
+ *         description: column to sort
+ *       - in: query
+ *         name: order
+ *         schema: {type: string, enum: [ASC, DESC] ,default: ASC}
+ *         description: order of sort (ascending or descending)
+ *       - in: query
+ *         name: populate
+ *         required: false
+ *         explode: false
+ *         schema:
+ *             type: array
+ *             items:
+ *                  type: string
+ *         description: select tables to join (Teacher, Student)
  *     responses:
  *       200:
  *         description: List of courses
@@ -66,13 +86,25 @@ export const getAllCourses = async (req, res) => {
     // which page to take
     const page = parseInt(req.query.page) || 1;
 
+    const sortBy = req.query.sortBy || 'id';
+
+    const order = req.query.order || 'asc';
+
     const total = await db.Course.count();
+
+    const populate = req.query.populate?.split(',') || [];
+
+    const includes = [];
+
+    if (populate.find(e => e === 'Teacher')) includes.push({model: Teacher});
+    if (populate.find(e => e === 'Student')) includes.push({model: Student});
 
     try {
         const courses = await db.Course.findAll(
             {
-                // include: [db.Student, db.Teacher],
-                limit: limit, offset: (page - 1) * limit
+                include: includes,
+                limit: limit, offset: (page - 1) * limit,
+                order: [[sortBy, order]],
             }
         );
         res.json({
